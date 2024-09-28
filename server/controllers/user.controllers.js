@@ -53,7 +53,6 @@ const registerUser = asyncHandler(async (req, res) => {
     return res.status(201).json(new ApiResponse(201, createdUser, "User registerd successfully."))
 })
 
-
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body
 
@@ -83,9 +82,24 @@ const loginUser = asyncHandler(async (req, res) => {
         .cookie("refreshToken", refreshToken, options)
         .json(new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken }, "User logged In Successfully"))
 })
+
+const logoutUser = asyncHandler(async (req, res) => {
+    await User.findByIdAndUpdate(req.user._id, {
+        $set: {
+            refreshToken: null,
+        },
+    }, { new: true, })
+
+    return res
+        .status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new ApiResponse(200, {}, "User logged out successfully"))
+})
+
 const refreshAccessToken = asyncHandler(async (req, res) => {
 
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+    const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken
 
     if (!incomingRefreshToken) {
         throw new ApiError(401, "Refresh token is required")
@@ -119,5 +133,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 export {
     registerUser,
     loginUser,
+    logoutUser,
     refreshAccessToken,
 }
