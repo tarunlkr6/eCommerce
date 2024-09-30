@@ -26,7 +26,7 @@ const generateAccessAndRefreshToken = async (userId) => {
 
 // create new user
 const registerUser = asyncHandler(async (req, res) => {
-    const { fullName, email, password } = req.body
+    const { fullName, email, password, isAdmin } = req.body
 
     if (
         [fullName, email, password].some((field) => field?.trim() === "")
@@ -42,6 +42,7 @@ const registerUser = asyncHandler(async (req, res) => {
         fullName,
         email,
         password,
+        isAdmin,
     })
 
     const createdUser = await User.findById(user._id).select("-password -refreshToken")
@@ -66,7 +67,8 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User does not exists")
     }
 
-    const isPasswordValid = await user.isPasswordCorrect(password)
+    const isPasswordValid = await user.isPasswordCorrect
+        (password)
 
     if (!isPasswordValid) {
         throw new ApiError(401, "Invalid user credentials")
