@@ -3,20 +3,10 @@ import { ApiError } from "../utils/ApiError.js";
 import { Product } from "../models/products.models.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { ApiFeatures } from "../utils/ApiFeatures.js";
 
-const getProducts = asyncHandler(async (req, res) => {
-    const products = await Product.find()
-
-    if (!products) {
-        throw new ApiError(500, "Error while fetching products")
-    }
-
-    return res
-        .status(200)
-        .json(new ApiResponse(200, products, "Products fetched successfully."))
-})
-
-const productDetails = asyncHandler(async (req, res) => {
+// Single product details
+const productById = asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id)
 
     if (!product) {
@@ -28,12 +18,14 @@ const productDetails = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, product, "Products fetched successfully."))
 })
 
+// create product
+// Access  admin only
 const createProduct = asyncHandler(async (req, res) => {
 
-    const { name, description, price, brand, category } = req.body
+    const { name, description, price, category, brand } = req.body
 
 
-    if ([name, description, price, brand, category].some((field) => field?.trim() === "")) {
+    if ([name, description, price, category, brand].some((field) => field?.trim() === "")) {
         throw new ApiError(400, "All fields are required")
     }
 
@@ -75,6 +67,31 @@ const createProduct = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, createdProduct, "Prouct created successfully"))
 })
 
+
+// Get All products
+// Access   all
+const getAllProducts = asyncHandler(async (req, res) => {
+    const resultPerPage = 10
+    const productCount = await Product.countDocuments()
+    const searchItem = new ApiFeatures(Product.find(), req.query)
+        .search()
+        .filter()
+        .pagination(resultPerPage)
+    //console.log("Search item: ", searchItem)
+    const products = await searchItem.query
+    //console.log("Products ", products)
+
+    if (!products) {
+        throw new ApiError(500, "Error while fetching products")
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { products, productCount }, "Products fetched successfully."))
+})
+
+// update product
+// Access  admin only
 const updateProduct = asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id)
 
@@ -100,6 +117,8 @@ const updateProduct = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, updatedProduct, "Product updated successfully"))
 })
 
+// delete product
+// Access   admin only
 const deleteProduct = asyncHandler(async (req, res) => {
     const product = await Product.find(req.params.id)
 
@@ -121,10 +140,12 @@ const deleteProduct = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, product._id, "Product deleted successfully."))
 })
+
+
 export {
     createProduct,
-    getProducts,
+    getAllProducts,
     updateProduct,
     deleteProduct,
-    productDetails,
+    productById,
 }

@@ -1,6 +1,7 @@
 import mongoose, { Schema } from "mongoose"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
+import validator from "validator"
 
 const userSchema = new Schema({
     fullName: {
@@ -14,6 +15,7 @@ const userSchema = new Schema({
         unique: true,
         lowercase: true,
         trim: true,
+        validate: [validator.isEmail, "Please enter a valid email"],
         index: true,
     },
     password: {

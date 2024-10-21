@@ -98,7 +98,8 @@ const orderSchema = new Schema({
     orderStatus: {
         type: String,
         required: true,
-        default: "Processing",
+        enum: ['received', 'shipped', 'delivered', 'cancelled'],
+        default: "received",
     },
     isPaid: {
         type: Boolean,

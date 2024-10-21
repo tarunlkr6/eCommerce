@@ -26,7 +26,7 @@ const verifyJWT = asyncHandler(async (req, _, next) => {
     }
 })
 
-const admin = asyncHandler(async (req, res, next) => {
+const authRole = asyncHandler(async (req, res, next) => {
     if (req.user && req.user.isAdmin) {
         next()
     } else {
@@ -34,4 +34,4 @@ const admin = asyncHandler(async (req, res, next) => {
     }
 })
 
-export { verifyJWT, admin }
+export { verifyJWT, authRole }
