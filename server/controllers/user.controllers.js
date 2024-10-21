@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.models.js"
 import jwt from "jsonwebtoken"
+import { sendEmail } from "../utils/sendEmail.js"
 
 const options = {
     httpOnly: true,
@@ -54,6 +55,7 @@ const registerUser = asyncHandler(async (req, res) => {
     return res.status(201).json(new ApiResponse(201, createdUser, "User registerd successfully."))
 })
 
+// Login user
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body
 
@@ -85,6 +87,7 @@ const loginUser = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken }, "User logged In Successfully"))
 })
 
+// Logout user
 const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(req.user._id, {
         $set: {
@@ -99,6 +102,7 @@ const logoutUser = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "User logged out successfully"))
 })
 
+// Refresh token
 const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken
@@ -132,9 +136,48 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 })
 
+
+// Forgot password token generation and mail sender
+const forgotPassword = asyncHandler(async (req, res) => {
+    const user = await User.findOne({ email: req.body.email })
+
+    if (!user) {
+        throw new ApiError(404, "User not found")
+    }
+
+    const resetToken = user.generateResetToken()
+
+    await user.save({ validateBeforeSave: false })
+
+    const passwordURL = `${req.protocol}://${req.get("host")}/api/v1/password/reset/${resetToken}`
+
+    const message = `We have received a request for changing your password for Poshak Ghar.\nIf you want to change your password, please click on the link: ${passwordURL}`
+
+    try {
+
+        await sendEmail({
+            email: user.email,
+            subject: `Ecommerce Password Recovery`,
+            message,
+        })
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, {}, `Email sent to ${user.email} successfully!`))
+
+    } catch (err) {
+        user.resetToken = null
+        user.resetTokenExpiry = null
+
+        await user.save({ validateBeforeSave: false })
+
+        throw new ApiError(500, err.message)
+    }
+})
 export {
     registerUser,
     loginUser,
     logoutUser,
     refreshAccessToken,
+    forgotPassword,
 }

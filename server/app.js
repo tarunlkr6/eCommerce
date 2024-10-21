@@ -22,7 +22,7 @@ import orderRouter from "./routes/order.routes.js"
 
 // routes declaration
 app.use("/api/v1/healthcheck", healthCheckRouter)
-app.use("/api/v1/users", userRouter)
+app.use("/api/v1/user", userRouter)
 app.use("/api/v1/products", productRouter)
 app.use("/api/v1/orders", orderRouter)
 

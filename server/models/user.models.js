@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 import validator from "validator"
+import crypto from "crypto"
 
 const userSchema = new Schema({
     fullName: {
@@ -31,6 +32,12 @@ const userSchema = new Schema({
     },
     refreshToken: {
         type: String,
+    },
+    resetToken: {
+        type: String,
+    },
+    resetTokenExpiry: {
+        type: Date,
     },
 }, { timestamps: true })
 
@@ -63,5 +70,15 @@ userSchema.methods.generateRefreshToken = function () {
         process.env.REFRESH_TOKEN_SECRET,
         { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
     )
+}
+
+userSchema.methods.generateResetToken = function () {
+    const token = crypto.randomBytes(20).toString("hex")
+
+    this.resetToken = crypto.createHash("sha256").update(token).digest("hex")
+
+    this.resetTokenExpiry = Date.now() + 5 * 60 * 1000
+
+    return token
 }
 export const User = mongoose.model("User", userSchema)
