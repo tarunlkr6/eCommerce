@@ -4,12 +4,14 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.models.js"
 import jwt from "jsonwebtoken"
 import { sendEmail } from "../utils/sendEmail.js"
+import crypto from "crypto"
 
 const options = {
     httpOnly: true,
     secure: true
 }
 
+// generate access and refresh token
 const generateAccessAndRefreshToken = async (userId) => {
     try {
         const user = await User.findById(userId)
@@ -136,7 +138,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 })
 
-
 // Forgot password token generation and mail sender
 const forgotPassword = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email: req.body.email })
@@ -174,10 +175,95 @@ const forgotPassword = asyncHandler(async (req, res) => {
         throw new ApiError(500, err.message)
     }
 })
+
+//reset password
+const resetPassword = asyncHandler(async (req, res) => {
+    const token = req.params.token
+    const resetToken = crypto.createHash("sha256").update(token).digest("hex")
+
+    const user = await User.findOne({
+        resetToken,
+        resetTokenExpiry: { $gt: Date.now() }
+    })
+
+    if (!user) {
+        throw new ApiError(404, "Token is invalid or has been expired")
+    }
+    const { password, confirmPassword } = req.body
+    if (password !== confirmPassword) {
+        throw new ApiError(400, "password does not match")
+    }
+
+    user.password = password
+    user.resetToken = null
+    user.resetTokenExpiry = null
+    const result = await user.save()
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, result, "Password changed successfully"))
+})
+
+// Get user details
+const getUserDetails = asyncHandler(async (req, res) => {
+    return res
+        .status(200)
+        .json(new ApiResponse(200, req.user, "fetched successfully"))
+})
+
+// change current password
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword, confirmPassword } = req.body
+
+    const user = await User.findById(req.user?._id)
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+    if (!isPasswordCorrect) {
+        throw new ApiError(400, "Invalid old password")
+    }
+    if (newPassword !== confirmPassword) {
+        throw new ApiError(400, "password does not match")
+    }
+
+    user.password = newPassword
+    await user.save({ validateBeforeSave: false })
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Password changed successfully"))
+})
+
+// Get all users (admin)
+const getAllUsers = asyncHandler(async (req, res) => {
+    const users = await User.find()
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, users, "Fetched successfully"))
+})
+
+// Get single user (admin)
+const getSingleUser = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.params.id)
+
+    if (!user) {
+        throw new ApiError(404, `User does not exists with this ${req.param.id}`)
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "User details fetched successfully."))
+})
+
 export {
     registerUser,
     loginUser,
     logoutUser,
     refreshAccessToken,
     forgotPassword,
+    resetPassword,
+    getUserDetails,
+    changeCurrentPassword,
+    getAllUsers,
+    getSingleUser,
 }

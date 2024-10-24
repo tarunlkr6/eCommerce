@@ -18,12 +18,10 @@ const productById = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, product, "Products fetched successfully."))
 })
 
-// create product
-// Access  admin only
+// create product (admin)
 const createProduct = asyncHandler(async (req, res) => {
 
     const { name, description, price, category, brand } = req.body
-
 
     if ([name, description, price, category, brand].some((field) => field?.trim() === "")) {
         throw new ApiError(400, "All fields are required")
@@ -57,7 +55,6 @@ const createProduct = asyncHandler(async (req, res) => {
 
     })
     const createdProduct = await Product.findById(product._id)
-
     if (!createdProduct) {
         throw new ApiError(500, "Something went wrong while creating product")
     }
@@ -69,7 +66,6 @@ const createProduct = asyncHandler(async (req, res) => {
 
 
 // Get All products
-// Access   all
 const getAllProducts = asyncHandler(async (req, res) => {
     const resultPerPage = 10
     const productCount = await Product.countDocuments()
@@ -90,8 +86,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, { products, productCount }, "Products fetched successfully."))
 })
 
-// update product
-// Access  admin only
+// update product (admin)
 const updateProduct = asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id)
 
@@ -117,8 +112,7 @@ const updateProduct = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, updatedProduct, "Product updated successfully"))
 })
 
-// delete product
-// Access   admin only
+// delete product (admin)
 const deleteProduct = asyncHandler(async (req, res) => {
     const product = await Product.find(req.params.id)
 
@@ -141,6 +135,100 @@ const deleteProduct = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, product._id, "Product deleted successfully."))
 })
 
+// product review
+const createProductReview = asyncHandler(async (req, res) => {
+    const { rating, comment } = req.body
+
+    const product = await Product.findById(req.params.id)
+
+    if (!rating && !comment) { throw new ApiError(400, "All fields are required") }
+
+    const review = {
+        user: req.user._id,
+        name: req.user.fullName,
+        rating: Number(rating),
+        comment,
+    }
+
+    const isReviewd = product.reviews.find((rev) => rev.user.toString() === req.user?.id.toString())
+
+    if (isReviewd) {
+        product.reviews.forEach((rev) => {
+            if (rev.user.toString() === req.user?.id.toString()) {
+                rev.rating = rating
+                rev.comment = comment
+            }
+        })
+    } else {
+        product.reviews.push(review)
+        product.numReviews = product.reviews.length
+    }
+
+    let avg = 0;
+    product.reviews.forEach((rev) => {
+        avg += rev.rating
+    })
+    product.ratings = avg / product.reviews.length
+    await product.save({ validateBeforeSave: false })
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, product, "Reviewd succuessfully."))
+})
+
+// get all product review
+const allProductReview = asyncHandler(async (req, res) => {
+
+    const product = await Product.findById(req.params.id)
+
+    if (!product) {
+        return res.status(400).json(new ApiResponse(400, "Invalid Product ID"))
+    }
+    const review = product.reviews
+    return res
+        .status(200)
+        .json(new ApiResponse(200, review, "Review fetched successfully."))
+})
+
+// delete review
+const deleteReview = asyncHandler(async (req, res) => {
+    const product = await Product.findById(req.params.id)
+    console.log(product)
+
+    if (!product) {
+        throw new ApiError(404, "Product not found")
+    }
+
+    const toBeDeleted = product.reviews.find(rev => rev._id.toString() !== req.params.id.toString())
+
+    if (!toBeDeleted) {
+        throw new ApiError(404, "Review not found")
+    }
+
+    const updatedReviews = product.reviews.filter(rev => rev._id.toString() !== toBeDeleted._id.toString())
+    //console.log(updatedReviews)
+
+    let avg = 0
+    updatedReviews.forEach(rev => {
+        avg += rev.rating
+    })
+
+    const ratings = updatedReviews.length > 0 ? avg / updatedReviews.length : 0
+
+    const numReviews = updatedReviews.length
+
+    const updatedReview = await Product.findByIdAndUpdate(req.params.id,
+        {
+            reviews: updatedReviews,
+            ratings,
+            numReviews,
+        },
+        { new: true })
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updatedReview, "Review  deleted and Product updated successfully"))
+})
 
 export {
     createProduct,
@@ -148,4 +236,7 @@ export {
     updateProduct,
     deleteProduct,
     productById,
+    createProductReview,
+    allProductReview,
+    deleteReview,
 }

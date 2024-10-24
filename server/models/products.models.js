@@ -1,6 +1,11 @@
 import mongoose, { Schema } from "mongoose"
 
 const reviewSchema = new Schema({
+    user: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
     name: {
         type: String,
         required: true,
@@ -34,6 +39,7 @@ const productSchema = new Schema({
     },
     image: [
         {
+            // cloudinary public id
             publicId: {
                 type: String,
                 required: true,
