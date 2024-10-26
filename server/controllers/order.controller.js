@@ -2,6 +2,15 @@ import { Order } from "../models/order.models.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
+import { Product } from "../models/products.models.js"
+
+const updateStock = async (id, quantity) => {
+    const product = await Product.findById(id)
+    console.log(product)
+    Product.countInStock -= quantity
+
+    await product.save({ validateBeforeSave: false })
+}
 
 // @desc    Create new order
 // @route   POST /api/orders/add
@@ -38,9 +47,7 @@ const createOrder = asyncHandler(async (req, res) => {
 // @route   Put /api/orders/myorders/cancel
 // @access  Private
 const cancelOrder = asyncHandler(async (req, res) => {
-    const { orderId } = req.params
-
-    const order = await Order.findById(orderId)
+    const order = await Order.findById(req.params.id)
 
     if (!order) {
         throw new ApiError(404, "Order not found")
@@ -51,7 +58,7 @@ const cancelOrder = asyncHandler(async (req, res) => {
     } else if (order.orderStatus === 'delivered') {
         throw new ApiError(400, "Delivered orders cannot be cancelled")
     }
-    const updatedOrder = await Order.findByIdAndUpdate(orderId, {
+    const updatedOrder = await Order.findByIdAndUpdate(req.params.id, {
         $set: {
             orderStatus: 'cancelled',
         }
@@ -67,7 +74,7 @@ const cancelOrder = asyncHandler(async (req, res) => {
 // @route   GET /api/orders/myorders
 // @access  Private
 const getMyOrders = asyncHandler(async (req, res) => {
-    const orders = await Order.find({ user: req.user?._id })
+    const orders = await Order.find({ user: req.user._id })
     if (!orders) {
         throw new ApiError(404, "Order not found")
     }
@@ -81,8 +88,16 @@ const getMyOrders = asyncHandler(async (req, res) => {
 // @route   GET /api/orders
 // @access  Private/Admin
 const getOrders = asyncHandler(async (req, res) => {
-    const orders = await Order.find({}).populate('user', 'id name')
-    res.json(orders)
+    const orders = await Order.find({}).populate('user', 'id fullName email')
+
+    let totalAmount = 0;
+    orders.forEach((order) => {
+        totalAmount += order.totalPrice
+    })
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { orders, totalAmount }, "Order fetched successfully"))
 })
 
 // @desc    Get order by ID
@@ -91,7 +106,7 @@ const getOrders = asyncHandler(async (req, res) => {
 const getOrderById = asyncHandler(async (req, res) => {
     const order = await Order.findById(req.params.id).populate(
         'user',
-        'name email'
+        'fullName email'
     )
     if (!order) {
         throw new ApiError(404, "Order not found")
@@ -111,7 +126,7 @@ const updateOrderToPaid = asyncHandler(async (req, res) => {
     if (order) {
         order.isPaid = true
         order.paidAt = Date.now()
-        order.paymentResult = {
+        order.payementResult = {
             id: req.body.id,
             status: req.body.status,
             update_time: req.body.update_time,
@@ -135,8 +150,12 @@ const updateOrderToDelivered = asyncHandler(async (req, res) => {
     const order = await Order.findById(req.params.id)
 
     if (order) {
-        order.isDelivered = true
-        order.deliveredAt = Date.now()
+        order.orderStatus = req.body.status
+        order.deliveredOn = Date.now()
+
+        if (order.orderStatus === 'delivered') {
+            order.isPaid = true
+        }
 
         const updatedOrder = await order.save()
 
@@ -144,7 +163,7 @@ const updateOrderToDelivered = asyncHandler(async (req, res) => {
             .status(200)
             .json(new ApiResponse(200, updatedOrder, "Order Delivered"))
     } else {
-        throw new Error(404, 'Order not found')
+        throw new ApiError(404, 'Order not found')
     }
 })
 

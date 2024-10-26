@@ -4,13 +4,15 @@ import { cancelOrder, createOrder, getMyOrders, getOrderById, getOrders, updateO
 
 const router = Router()
 
+// secured routes
 router.route("/add").post(verifyJWT, createOrder)
-router.route("myorders").get(verifyJWT, getMyOrders)
+router.route("/myorders").get(verifyJWT, getMyOrders)
 router.route("/:id").get(verifyJWT, getOrderById)
-router.route("/cancel").post(verifyJWT, cancelOrder)
-router.route("/").get(verifyJWT, authRole, getOrders)
+router.route("/cancel/:id").post(verifyJWT, cancelOrder)
 router.route("/:id/pay").get(verifyJWT, updateOrderToPaid)
-router.route("/:id/deliver").get(verifyJWT, authRole, updateOrderToDelivered)
 
+// secured admin routes
+router.route("/").get(verifyJWT, authRole, getOrders)
+router.route("/:id/deliver").post(verifyJWT, authRole, updateOrderToDelivered)
 
 export default router

@@ -49,7 +49,7 @@ const orderSchema = new Schema({
             required: true,
         },
         postalCode: {
-            type: String,
+            type: Number,
             required: true,
         },
         phoneNo: {
@@ -109,12 +109,7 @@ const orderSchema = new Schema({
     paidAt: {
         type: Date,
     },
-    isDelivered: {
-        type: Boolean,
-        required: true,
-        default: false,
-    },
-    deliveredAt: {
+    deliveredOn: {
         type: Date,
     },
 }, { timestamps: true })
